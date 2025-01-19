@@ -1,18 +1,27 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-
 import { getProductBySlug } from '@/lib/actions/product.actions';
 import { notFound } from 'next/navigation';
 import ProductPrice from '@/components/shared/product/product-price';
 import ProductImages from '@/components/shared/product/product-images';
 import AddToCart from '@/components/shared/product/add-to-cart';
+import { getMyCart } from '@/lib/actions/cart.actions';
+// import ReviewList from './review-list';
+import { auth } from '@/auth';
+// import Rating from '@/components/shared/product/rating';
 
 const ProductDetailsPage = async (props: {
   params: Promise<{ slug: string }>;
 }) => {
   const { slug } = await props.params;
+
   const product = await getProductBySlug(slug);
   if (!product) notFound();
+
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  const cart = await getMyCart();
 
   return (
     <>
@@ -20,20 +29,17 @@ const ProductDetailsPage = async (props: {
         <div className='grid grid-cols-1 md:grid-cols-5'>
           {/* Images Column */}
           <div className='col-span-2'>
-            {/* Images Component */}
             <ProductImages images={product.images} />
           </div>
           {/* Details Column */}
           <div className='col-span-2 p-5'>
-            {/* Details Component */}
             <div className='flex flex-col gap-6'>
               <p>
                 {product.brand} {product.category}
               </p>
               <h1 className='h3-bold'>{product.name}</h1>
-              <p>
-                {product.rating} of {product.numReviews} Reviews
-              </p>
+              {/* <Rating value={Number(product.rating)} /> */}
+              <p>{product.numReviews} reviews</p>
               <div className='flex flex-col sm:flex-row sm:items-center gap-3'>
                 <ProductPrice
                   value={Number(product.price)}
@@ -46,7 +52,7 @@ const ProductDetailsPage = async (props: {
               <p>{product.description}</p>
             </div>
           </div>
-          {/* Actions Column */}
+          {/* Action Column */}
           <div>
             <Card>
               <CardContent className='p-4'>
@@ -67,6 +73,7 @@ const ProductDetailsPage = async (props: {
                 {product.stock > 0 && (
                   <div className='flex-center'>
                     <AddToCart
+                      cart={cart}
                       item={{
                         productId: product.id,
                         name: product.name,
@@ -82,6 +89,14 @@ const ProductDetailsPage = async (props: {
             </Card>
           </div>
         </div>
+      </section>
+      <section className='mt-10'>
+        <h2 className='h2-bold mb-5'>Customer Reviews</h2>
+        {/* <ReviewList
+          userId={userId || ''}
+          productId={product.id}
+          productSlug={product.slug}
+        /> */}
       </section>
     </>
   );
