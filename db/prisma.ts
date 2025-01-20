@@ -3,6 +3,8 @@ import { PrismaNeon } from '@prisma/adapter-neon';
 import { PrismaClient } from '@prisma/client';
 import ws from 'ws';
 
+import { PrismaAdapter } from '@auth/prisma-adapter';
+
 // Sets up WebSocket connections, which enables Neon to use WebSocket communication.
 neonConfig.webSocketConstructor = ws;
 const connectionString = `${process.env.DATABASE_URL}`;
@@ -56,3 +58,7 @@ export const prisma = new PrismaClient({ adapter }).$extends({
     },
   },
 });
+
+//// middleware solution:
+export const { user, cart } = prisma;
+export const authAdapter = PrismaAdapter(prisma);

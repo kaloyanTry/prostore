@@ -1,6 +1,12 @@
 import NextAuth from 'next-auth';
-import { PrismaAdapter } from '@auth/prisma-adapter';
-import { prisma } from '@/db/prisma';
+// import { PrismaAdapter } from '@auth/prisma-adapter';
+// import { prisma } from '@/db/prisma';
+import {
+  user as prismaUser,
+  cart as prismaCart,
+  authAdapter,
+} from '@/db/prisma';
+
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compare } from './lib/encrypt';
 import type { NextAuthConfig } from 'next-auth';
@@ -16,7 +22,7 @@ export const config = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60,
   },
-  adapter: PrismaAdapter(prisma),
+  adapter: authAdapter,
   providers: [
     CredentialsProvider({
       credentials: {
@@ -26,7 +32,7 @@ export const config = {
       async authorize(credentials) {
         if (credentials == null) return null;
 
-        const user = await prisma.user.findFirst({
+        const user = await prismaUser.findFirst({
           where: {
             email: credentials.email as string,
           },
@@ -63,7 +69,7 @@ export const config = {
 
       return session;
     },
-    async jwt({ token, user }: any) {
+    async jwt({ token, user, trigger, session }: any) {
       // Assign user fields to token
       if (user) {
         token.id = user.id;
@@ -74,11 +80,40 @@ export const config = {
           token.name = user.email!.split('@')[0];
 
           // Update database to reflect the token name
-          await prisma.user.update({
+          await prismaUser.update({
             where: { id: user.id },
             data: { name: token.name },
           });
         }
+
+        if (trigger === 'signIn' || trigger === 'signUp') {
+          const cookiesObject = await cookies();
+          const sessionCartId = cookiesObject.get('sessionCartId')?.value;
+
+          if (sessionCartId) {
+            const sessionCart = await prismaCart.findFirst({
+              where: { sessionCartId },
+            });
+
+            if (sessionCart) {
+              // Delete current user cart
+              await prismaCart.deleteMany({
+                where: { userId: user.id },
+              });
+
+              // Assign new cart
+              await prismaCart.update({
+                where: { id: sessionCart.id },
+                data: { userId: user.id },
+              });
+            }
+          }
+        }
+      }
+
+      // Handle session updates
+      if (session?.user.name && trigger === 'update') {
+        token.name = session.user.name;
       }
       return token;
     },
